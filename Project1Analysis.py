@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from CHAlgorithmBase import contraction_hierarchy, ch_query
 import random
+from TNRAlgorithmExtension import TransitNodeRouting
 
 def pick_random_node(G):
     return random.choice(list(G.nodes))
@@ -68,7 +69,7 @@ nx.draw_networkx_edge_labels(G, pos, edge_labels={(u, v): f'{d["weight"]}' for u
 plt.savefig("no_shortcuts_Falcon")
 """
 print(f"Num of edges pre contraction: {G.number_of_edges()}")
-order, edges_added = contraction_hierarchy(G)
+order, edges_added, F = contraction_hierarchy(G)
 print(f"Num of edges pre contraction: {G.number_of_edges()}")
 print("Contraction order:", order)
 
@@ -77,12 +78,12 @@ print("Contraction order:", order)
 #55740867, 55741498
 
 # fig, ax = ox.plot_graph(G, node_size=10, edge_linewidth=1, bgcolor='k', node_color='r')
-fig, ax = ox.plot_graph(G, node_color=node_colors, node_size=node_sizes, edge_linewidth=1, bgcolor='k')
+#fig, ax = ox.plot_graph(G, node_color=node_colors, node_size=node_sizes, edge_linewidth=1, bgcolor='k')
 # Run the CH query.
 
-for _ in range(40):
+for _ in range(100):
     source = pick_random_node(G)  # 10848375497
-    target = 10848375497
+    target = pick_random_node(G) # 10848375497
     distance, explored_nodes = ch_query(G, source, target)
     # print(f"Shortest distance from {source} to {target}: {distance}")
     # print("Explored nodes: ", explored_nodes)
@@ -91,6 +92,31 @@ for _ in range(40):
         print(f"ch query returned: {distance}, but built-in shortest path was: {verification}")
         print(f"For: source: {source}, target: {target}")
         print()
+
+print()
+print()
+print("TNR pre-processing:")
+
+k = 20  # for example
+tnr = TransitNodeRouting(F, k)
+tnr.setup_transit_nodes_and_D()   # Select transit nodes and compute table D.
+
+# Compute candidate access nodes (forward and backward) and record search spaces.
+tnr.compute_access_nodes_forward()
+# tnr.compute_access_nodes_backward()
+
+# Prune the candidate access nodes.
+tnr.prune_access_nodes()
+
+# Run a query:
+for _ in range(100):
+    source = pick_random_node(G)  # 10848375497
+    target = pick_random_node(G) # 10848375497
+    distance = tnr.query(source, target)
+    distance_check, _ = nx.bidirectional_dijkstra(F, source, target)
+    if (distance != distance_check):
+        print(f"ERROR on TNR! Dist: {distance}, check {distance_check}")
+    # print("Shortest path length:", distance, ", check:", distance_check)
 
 """
 plt.figure()

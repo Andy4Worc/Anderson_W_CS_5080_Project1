@@ -46,7 +46,7 @@ plt.savefig("example Graph")
 
 
 def run_preprocessing_CH_degree_ordering(G):
-    order, edges_added = contraction_hierarchy(G)
+    order, edges_added, F = contraction_hierarchy(G)
     print("Contraction order:", order)
 
     return order, edges_added
@@ -125,7 +125,7 @@ if (Ep_degree_shortcuts_added != Ep_degree_shortcuts_added_test): # order should
     print("Error! degree CH preprocessing shortcuts added failed!", flush=True)
     exit(1)
 
-degree_distance, degree_CH_nodes_explored = run_query_CH_degree_ordering(G, 3, 8)  # 7, 4
+degree_distance, degree_CH_nodes_explored = run_query_CH_degree_ordering(G, 4,7)  # 7, 4
 print("degree nodes explored: ", degree_CH_nodes_explored)
 
 if degree_distance != 8:

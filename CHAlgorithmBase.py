@@ -112,7 +112,7 @@ def contract_node(G, H, v):
 
             if shortest_weight_without_v > shortest_possible_weight:
                 # Add a shortcut edge between u and w.
-                print("adding edge...")
+                # print("adding edge...")
                 H.add_edge(u, w, weight=shortest_possible_weight, shortcut=True)
                 G.add_edge(u, w, weight=shortest_possible_weight, shortcut=True)
                 shortcuts_added_for_node.append((u, w, shortest_possible_weight))
@@ -164,7 +164,8 @@ def contraction_hierarchy(G):
     Note: The input graph G is modified in place.
     """
     # Make a working copy if you want to preserve the original graph.
-    H = G.copy()
+    H = G.copy() # graph to trim down to nothing
+    F = G.copy() # graph to not add shortcuts but do add node ordering
     order_counter = 0
     contraction_order = []
     all_shortcuts = []
@@ -186,12 +187,13 @@ def contraction_hierarchy(G):
 
         contraction_order.append(best_node)
         G.nodes[best_node]['order'] = order_counter
+        F.nodes[best_node]['order'] = order_counter
         order_counter += 1
         G, shortcuts_added_for_node = contract_node(G, H, best_node)
         if len(shortcuts_added_for_node) > 0:
             all_shortcuts = all_shortcuts + shortcuts_added_for_node
 
-    return contraction_order, all_shortcuts
+    return contraction_order, all_shortcuts, F
 
 
 def ch_query(G, source, target):
@@ -224,24 +226,13 @@ def ch_query(G, source, target):
     nodes_explored = []
     mu = INF
 
-    next_best_fp = pq_f[0]
-    next_best_bp = pq_b[0]
-
     while pq_f or pq_b:
-
-        # Termination: Even the best possible combination (adjusted for common edge)
-        # cannot improve upon mu.
-        if pq_f and pq_b:
-            f_val, f_node = next_best_fp
-            b_val, b_node = next_best_bp
-            #if f_val + b_val >= mu:
-            #    break
 
         # Forward search step.
         if pq_f:
             d, u = heapq.heappop(pq_f)
             nodes_explored.append(u)
-            if d > d_f[u]:
+            if d < d_f[u]:
                 continue
             for v in G.neighbors(u):
                 # Relax only if the neighbor is "upward" in CH order.
@@ -249,20 +240,11 @@ def ch_query(G, source, target):
                     edge_weight = min(data.get('weight', 1) for data in G.get_edge_data(u, v).values())
                     newd = d_f[u] + edge_weight
                     if newd < d_f[v]:
-                        # print("just forward pushed from, to: ", u, " ", v)
                         d_f[v] = newd
                         heapq.heappush(pq_f, (newd, v))
-                    # If u was also reached by the backward search, update mu.
-                    if v in d_b and d_f[v] + d_b[v] < mu:
-                        mu = d_f[v] + d_b[v]
-            if (len(pq_f) > 0):
-                next_best_fp = pq_f[0]  # top of forward heap
-
-        if pq_f and pq_b:
-            f_val, f_node = next_best_fp
-            b_val, b_node = next_best_bp
-            #if f_val + b_val >= mu:
-            #    break
+                        # If u was also reached by the backward search, update mu.
+                        if v in d_b and d_f[v] + d_b[v] < mu:
+                            mu = d_f[v] + d_b[v]
 
         # Backward search step.
         if pq_b:
@@ -279,11 +261,8 @@ def ch_query(G, source, target):
                     if newd < d_b[v]:
                         d_b[v] = newd
                         heapq.heappush(pq_b, (newd, v))
-                    if v in d_f and d_f[v] + d_b[v] < mu:
-                        mu = d_f[v] + d_b[v]
-            if (len(pq_b) > 0):
-                next_best_bp = pq_b[0]
-
+                        if v in d_f and d_f[v] + d_b[v] < mu:
+                            mu = d_f[v] + d_b[v]
     return mu, nodes_explored
 
 
@@ -316,7 +295,7 @@ if __name__ == "__main__":
 
     shortest_weight_without_v = nx.shortest_path_length(G, source='E', target='D', weight='weight')
 
-    order, edges_added = contraction_hierarchy(G)
+    order, edges_added, F = contraction_hierarchy(G)
     print("Contraction order:", order)
     # At this point, G has been contracted and contains any shortcut edges added.
 
