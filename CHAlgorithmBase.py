@@ -4,69 +4,6 @@ import matplotlib.pyplot as plt
 from networkx.exception import NetworkXNoPath
 import math
 
-#CH_edge_diff()
- # tie breaker ordering is least number of shortcuts added
-
-"""
-def preprocess_tnr(graph, num_transit_nodes):
-    # Step 1: Calculate betweenness centrality for all nodes
-    centrality = nx.betweenness_centrality(graph, weight='weight')
-
-    # Step 2: Select the top-n nodes with highest betweenness centrality as transit nodes
-    sorted_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)
-    transit_nodes = [node for node, _ in sorted_nodes[:num_transit_nodes]]
-
-    # Step 3: Compute shortest paths between all pairs of transit nodes
-    distance = {}
-    for u in transit_nodes:
-        distance[u] = {}
-        for v in transit_nodes:
-            if u == v:
-                distance[u][v] = 0
-            else:
-                distance[u][v] = nx.shortest_path_length(graph, u, v, weight='weight')
-
-    return transit_nodes, distance
-
-
-# Example usage:
-# graph = nx.random_geometric_graph(100, 0.1)
-# num_transit_nodes = 10  # Number of transit nodes to select
-# transit_nodes, distance = preprocess_tnr(graph, num_transit_nodes)
-
-
-def query_tnr(graph, source, target, transit_nodes, distance):
-    # Step 1: If source and target are transit nodes, return precomputed distance
-    if source in transit_nodes and target in transit_nodes:
-        return distance[source][target]
-
-    # Step 2: Otherwise, compute the shortest path from source to transit nodes
-    shortest_distances_from_source = {}
-    for tn in transit_nodes:
-        shortest_distances_from_source[tn] = nx.shortest_path_length(graph, source, tn, weight='weight')
-
-    # Step 3: Compute the shortest path from transit nodes to target
-    shortest_distances_to_target = {}
-    for tn in transit_nodes:
-        shortest_distances_to_target[tn] = nx.shortest_path_length(graph, tn, target, weight='weight')
-
-    # Step 4: Combine distances to get the shortest path from source to target via transit nodes
-    min_distance = float('inf')
-    for tn in transit_nodes:
-        total_distance = shortest_distances_from_source[tn] + shortest_distances_to_target[tn]
-        min_distance = min(min_distance, total_distance)
-
-    return min_distance
-
-
-# Example usage:
-# source = 0
-# target = 99
-# shortest_distance = query_tnr(graph, source, target, transit_nodes, distance)
-# print(f"Shortest distance from {source} to {target} is {shortest_distance}")
-
-"""
-
 
 #Credit to ChatGPT for framework, but various edits and heavily debugged by me (me=Anderson Worcester)
 
@@ -118,7 +55,7 @@ def contract_node(G, H, v):
                 shortcuts_added_for_node.append((u, w, shortest_possible_weight))
     return G, shortcuts_added_for_node
 
-def compute_potential_shortcuts(G, v):
+def compute_potential_shortcuts(G, v) -> int:
     """
     Computes the number of shortcut edges that would be added if node v were contracted.
     This serves as a tie-breaker in the ordering.
@@ -148,11 +85,11 @@ def compute_potential_shortcuts(G, v):
 
             if shortest_weight_without_v > shortest_weight:
                 potential_shortcuts += 1
-
+    # print(potential_shortcuts, ", of node: ", v)
     return potential_shortcuts
 
 
-def contraction_hierarchy(G):
+def contraction_hierarchy(G, order_type, is_online = False): #
     """
     Constructs a contraction hierarchy on an undirected MultiDiGraph G.
     At each step, it selects the node with the lowest degree (number of incident edges).
@@ -168,24 +105,44 @@ def contraction_hierarchy(G):
     F = G.copy() # graph to not add shortcuts but do add node ordering
     order_counter = 0
     contraction_order = []
+    temp_contraction_order = []
+    if not is_online:
+        if order_type == "degree":
+            contraction_order = sorted(list(H.nodes()), key=lambda a_node:  (H.degree(a_node), compute_potential_shortcuts(H, a_node)) )
+        elif order_type == "edge_diff":
+            contraction_order = sorted(list(H.nodes()), key=lambda a_node: (compute_potential_shortcuts(H, a_node) - H.degree(a_node), compute_potential_shortcuts(H, a_node)))
+        temp_contraction_order = contraction_order[:]
     all_shortcuts = []
 
     while H.number_of_nodes() > 0:
         best_node = None
         best_degree = float('inf')
         best_shortcuts = float('inf')
+        best_edge_diff = float('inf')
 
         # Evaluate each node by its degree and potential shortcuts.
-        for v in list(H.nodes()):
-            degree = H.degree(v)
-            shortcuts = compute_potential_shortcuts(H, v)
+        if is_online:
+            if order_type == "degree":
+                for v in list(H.nodes()):
+                    degree = H.degree(v)
+                    shortcuts = compute_potential_shortcuts(H, v)
 
-            if degree < best_degree or (degree == best_degree and shortcuts < best_shortcuts):
-                best_node = v
-                best_degree = degree
-                best_shortcuts = shortcuts
+                    if degree < best_degree or (degree == best_degree and shortcuts < best_shortcuts):
+                        best_node = v
+                        best_degree = degree
+                        best_shortcuts = shortcuts
+            elif order_type == "edge_diff":
+                for v in list(H.nodes()):
+                    degree = H.degree(v)
+                    shortcuts = compute_potential_shortcuts(H, v)
+                    if (shortcuts - degree) < best_edge_diff or ((shortcuts - degree) == best_edge_diff and shortcuts < best_shortcuts):
+                        best_node = v
+                        best_edge_diff = (shortcuts - degree)
+                        best_shortcuts = shortcuts
+            contraction_order.append(best_node)
+        else:
+            best_node = temp_contraction_order.pop(0)
 
-        contraction_order.append(best_node)
         G.nodes[best_node]['order'] = order_counter
         F.nodes[best_node]['order'] = order_counter
         order_counter += 1
@@ -210,8 +167,9 @@ def ch_query(G, source, target):
         mu: the best (shortest) distance from source to target (or infinity if no path exists),
         explored: a list of nodes that were explored during the search.
     """
-    # weight = lambda u, v, d: 1 if G.nodes[u]["order"] > G.nodes[v]["order"] else None
-    # length, path = nx.bidirectional_dijkstra(G, source, target, weight="weight")
+
+    if source == target:
+        return 0, []
 
     INF = float('inf')
     # Initialize distances for forward and backward searches.
@@ -265,7 +223,6 @@ def ch_query(G, source, target):
                             mu = d_f[v] + d_b[v]
     return mu, nodes_explored
 
-
 # Example usage:
 if __name__ == "__main__":
     # Create a simple undirected MultiDiGraph.
@@ -295,14 +252,14 @@ if __name__ == "__main__":
 
     shortest_weight_without_v = nx.shortest_path_length(G, source='E', target='D', weight='weight')
 
-    order, edges_added, F = contraction_hierarchy(G)
+    order, edges_added, F = contraction_hierarchy(G, order_type="edge_diff", is_online=False)
     print("Contraction order:", order)
     # At this point, G has been contracted and contains any shortcut edges added.
 
 
     # Run the CH query.
     source = 'A'
-    target = 'D'
+    target = 'A'
     distance, explored_nodes = ch_query(G, source, target)
     print(f"Shortest distance from {source} to {target}: {distance}")
     print("Explored nodes: ", explored_nodes)

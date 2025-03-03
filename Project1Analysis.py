@@ -60,6 +60,7 @@ G = G.to_undirected()
 self_loops = list(nx.selfloop_edges(G))
 print(self_loops)
 G.remove_edges_from(self_loops)
+
 """
 plt.figure()
 pos = nx.spring_layout(G, weight='weight', seed=2)  # shell_layout, planar_layout
@@ -68,9 +69,14 @@ nx.draw(G, pos,
 nx.draw_networkx_edge_labels(G, pos, edge_labels={(u, v): f'{d["weight"]}' for u, v, d in G.edges(data=True)})
 plt.savefig("no_shortcuts_Falcon")
 """
+
+# start of metric analysis:
+
 print(f"Num of edges pre contraction: {G.number_of_edges()}")
-order, edges_added, F = contraction_hierarchy(G)
-print(f"Num of edges pre contraction: {G.number_of_edges()}")
+print()
+print("Starting CH pre-processing...")
+order, edges_added, F = contraction_hierarchy(G, order_type = "degree", is_online=True)
+print(f"Num of edges post contraction: {G.number_of_edges()}")
 print("Contraction order:", order)
 
 # At this point, G has been contracted and contains any shortcut edges added.
@@ -110,11 +116,11 @@ tnr.prune_access_nodes()
 
 # Run a query:
 for _ in range(100):
-    source = pick_random_node(G)  # 10848375497
-    target = pick_random_node(G) # 10848375497
+    source = pick_random_node(F)  # 10848375497
+    target = pick_random_node(F) # 10848375497
     distance = tnr.query(source, target)
     distance_check, _ = nx.bidirectional_dijkstra(F, source, target)
-    if (distance != distance_check):
+    if distance != distance_check:
         print(f"ERROR on TNR! Dist: {distance}, check {distance_check}")
     # print("Shortest path length:", distance, ", check:", distance_check)
 
