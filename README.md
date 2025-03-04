@@ -40,5 +40,3 @@ However, these files are mainly used as the code housing for the CH algorithm an
 
 Note: TNRAlgorithmExtension.py (TNR alg), per its name, is an extension of CHAlgorithmBase.py (CH alg), but only via
 duck-typing. It calls CH to complete the TNR algorithm, but it is not an actual proper subclass of CH algorithm.
-
-I have also added a few .png output files to the submission in Canvas for the project.
