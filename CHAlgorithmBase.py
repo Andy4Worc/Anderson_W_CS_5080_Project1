@@ -259,7 +259,7 @@ if __name__ == "__main__":
 
     # Run the CH query.
     source = 'A'
-    target = 'A'
+    target = 'D'
     distance, explored_nodes = ch_query(G, source, target)
     print(f"Shortest distance from {source} to {target}: {distance}")
     print("Explored nodes: ", explored_nodes)

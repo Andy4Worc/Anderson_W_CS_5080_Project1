@@ -25,8 +25,7 @@ class TransitNodeRouting:
 
 
     def ch_query(self, s, t):
-        
-        #Placeholder for a CH query between nodes s and t.
+
         #(Here we simply use NetworkX's bidirectional Dijkstra.)
         
         try:
@@ -85,10 +84,6 @@ class TransitNodeRouting:
                     if v not in distances or nd < distances[v]:
                         distances[v] = nd
                         heapq.heappush(pq, (nd, v))
-                        # if u == 7:
-                            #print(f"'7' neighbor: {v} and distance: {nd}")
-                            #print(f"and proper edge: {min(data.get('weight', 1) for data in G.get_edge_data(u, v).values())}")
-                            #print()
             self.forward_access[s] = [(target, dist) for target, dist in candidate_access.items()]
             self.search_space[s] = search_space
 
@@ -116,40 +111,15 @@ class TransitNodeRouting:
                     d1 = candidate_dict[t1]
                     d2 = candidate_dict[t2]
                     # Use precomputed transit-to-transit distance from table D.
-                    #print(f"For node s: {s}, d1: {d1}, d2: {d2}, t1: {t1}, t2: {t2}, D_dis: {self.D.get(t1, {}).get(t2, math.inf)}")
-                    #print()
                     if d1 + self.D.get(t1, {}).get(t2, math.inf) <= d2:
                         to_remove.add(t2)
                         #print('adding removal!')
 
             for t in to_remove:
-                #print(len(candidate_dict))
                 candidate_dict.pop(t, None)
-                #print(len(candidate_dict))
-                #print()
+
             self.forward_access[s] = [(t, d) for t, d in candidate_dict.items()]
 
-        """
-        # Prune backward access nodes.
-        for s in self.G.nodes():
-            candidates = self.backward_access.get(s, [])
-            candidate_dict = {t: d for t, d in candidates}
-            to_remove = set()
-            candidate_list = list(candidate_dict.keys())
-            for i in range(len(candidate_list)):
-                for j in range(len(candidate_list)):
-                    if i == j:
-                        continue
-                    t1 = candidate_list[i]
-                    t2 = candidate_list[j]
-                    d1 = candidate_dict[t1]
-                    d2 = candidate_dict[t2]
-                    if d1 + self.D.get(t1, {}).get(t2, math.inf) <= d2:
-                        to_remove.add(t2)
-            for t in to_remove:
-                candidate_dict.pop(t, None)
-            self.backward_access[s] = [(t, d) for t, d in candidate_dict.items()]
-        """
     def is_local(self, s, t):
         """
         Determines whether the query from s to t should be handled as a local query.
@@ -183,7 +153,6 @@ class TransitNodeRouting:
         # Combine forward access nodes from s and backward access nodes from t.
         for transit_s, d_s in self.forward_access.get(s, []):
             for transit_t, d_t in self.forward_access.get(t, []):
-                # print(f"The weird d_t value: {d_t} for transit_t: {transit_t}")
                 transit_distance = self.D.get(transit_s, {}).get(transit_t, math.inf)
                 total = d_s + transit_distance + d_t
                 if total < best_distance:
@@ -256,4 +225,3 @@ if __name__ == "__main__":
             if (distance != distance_check):
                 print(f"ERROR! Dist: {distance}, check {distance_check}")
             # print("Shortest path length:", distance, ", check:", distance_check)
-    # =======================
